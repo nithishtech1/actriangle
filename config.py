@@ -66,3 +66,11 @@ DATA_REPLAY = ROOT / "data" / "replay"
 HEALTH_ALERT_THRESHOLD = 80
 ALERT_CONSECUTIVE_FITS = 3
 FIT_INTERVAL_S = 60
+
+# Fit the initial pull-down only; do not model steady-state compressor cycling.
+FIT_WINDOW_MIN = 15.0
+LIVE_MIN_FIT_MIN = 8.0        # provisional fits at 8, 9, ... 15 minutes
+MIN_FIT_R2 = 0.90
+MAX_SAMPLE_GAP_S = 30.0      # reject an interrupted fitting window
+SETPOINT_C = None           # enter the actual setting; not inferred from sensor data
+REPORTS = ROOT / "reports"
