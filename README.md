@@ -1,6 +1,6 @@
 # ClimaTwin
 
-Low-cost twin of how fast a home split AC cools a room. An ESP32 with two DS18B20 probes and an SHT31 logs temperature and humidity; software fits a pull-down curve (time constant tau), flags degradation such as a clogged filter, and produces a before/after service report.
+Low-cost twin of how fast a home split AC cools a room. An ESP32 WROOM NodeMCU (38-pin) with two DS18B20 probes and a DHT11 sensor logs temperature and humidity; software fits a pull-down curve (time constant tau), flags cold-vent/slow-room airflow degradation, and guides a before/after Guided Experiment & Proof-of-Service report.
 
 Team TRIANGLE, Make-A-Thon (CIT), Track 2 Digital Twin.
 
@@ -48,7 +48,7 @@ One CSV per run, rows about every 5-6 seconds, header exactly:
 | `ms` | ESP32 `millis()` at the reading |
 | `supply_C` | Supply-air probe, offset-corrected |
 | `return_C` | Return-air probe, offset-corrected |
-| `room_C`, `room_RH` | SHT31 room temperature and humidity, offset-corrected |
+| `room_C`, `room_RH` | DHT11 room temperature and humidity, offset-corrected |
 | `outdoor_C` | Outdoor temperature from the weather API (or the typed fallback) |
 | `phase` | `clean1`, `blocked`, `clean2`, or `reset` |
 

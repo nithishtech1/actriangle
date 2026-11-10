@@ -1,0 +1,167 @@
+CLIMATWIN: HARDWARE & TEST GUIDE (v2.1)
+Team TRIANGLE | CIT Make-A-Thon Round 2 | Architect Directive
+Updated: 10 Nov 2026 (21:22 IST)
+Upload or paste directly into ChatGPT / Codex for guidance
+
+================================================================================
+INSTRUCTIONS FOR CHATGPT / AI ASSISTANT (READ FIRST)
+================================================================================
+- Actual Hardware: The team does NOT have an SHT31. They have a working
+  ESP32 WROOM NodeMCU 38-Pin, 1x DHT11 Sensor Module, 2x DS18B20 Probes
+  (now working), 4.7 kOhm pull-up resistors, and a GL12 840-pt breadboard.
+- Strict Integrity Rule: NEVER write code that generates fake or random
+  sensor readings in live mode.
+- Serial Data Contract: Firmware must print exactly 5 comma-separated
+  values per line at 115200 baud:
+    ms,probe0_C,probe1_C,room_C,room_RH
+- Core Fit Rule: Python's twin/fit_tau.py fits Newton cooling ONLY on
+  room_C and rejects runs if any 3-minute window is flatter than -0.02 C/min.
+
+================================================================================
+STATUS UPDATE: DS18B20 ONLINE
+================================================================================
+Great work getting DS18B20 working! Keep your working pins and libraries,
+and never generate random values in live mode. Before starting the 60-minute
+AC runs, finish the 2-minute verification checklist below so tonight's CSVs
+pass validation cleanly on the first try.
+
+================================================================================
+1. REAL HARDWARE BOM & PINOUT (Invoice INV2223-1599 - Rs 1,281)
+================================================================================
+1) ESP32 WROOM NodeMCU 38-Pin (Qty 1)
+   - Interface: USB Type-C (115200 baud)
+   - Note: Always use GPIO numbers in code (27, 26), not D4.
+     Avoid pins 34-39, 0, 2, 12, 15.
+
+2) DS18B20 Temperature Probes (Qty 2)
+   - Data (BOTH Yellow) -> P27 (GPIO27, shared at breadboard Col 24)
+   - VCC (BOTH Red)     -> 3V3
+   - GND (BOTH Black)   -> GND
+   - Note: Confirm both probes report cleanly (count = 2) and never output
+     -127.00 or stuck 85.00.
+
+3) 4.7 kOhm Pull-Up Resistor (Qty 1+)
+   - Single 4.7 kOhm pull-up between P27 (Col 24) and 3V3 serves both probes.
+
+4) DHT11 Sensor Module (Qty 1, replaces SHT31)
+   - Signal (out/S) -> P26 (GPIO26), VCC -> 3V3, GND -> GND
+   - Note: Match tiny + / out / - labels on your PCB; no extra resistor needed.
+
+5) GL12 840-Point Breadboard (Qty 1)
+   - Note: Side power rails (+ / -) split at column 30; keep wiring rigid
+     before mounting.
+
+================================================================================
+2. PRE-TEST VERIFICATION CHECKLIST (2 MINUTES BEFORE AC RUN - TASKS 34 & 35)
+================================================================================
+[ ] 1. Confirm Count = 2
+       Check Serial Monitor startup prints "# DS18B20 count: 2" (both probes
+       active, no -127.00 or stuck 85.00 readings).
+
+[ ] 2. Pinch Test & Cable Labels (Task 35)
+       Hold one probe between your fingers for 5 seconds and watch whether
+       probe0_C or probe1_C rises. Label cables SUPPLY and RETURN, and verify
+       PROBE_ROLES in config.py matches!
+
+[ ] 3. 5-Min Ambient Offset + Send 5 Serial Lines (Task 34)
+       Leave both probes and DHT11 side-by-side at room temp for ~5 minutes,
+       note ambient offset, and paste 5 Serial Monitor lines to Nithish (checks
+       whether DHT11 outputs decimals like 28.40 or integers like 28.00).
+
+[ ] 4. Mechanical Strain Relief
+       Secure jumper wires near the breadboard with tape/zip-tie so taping
+       probes onto the AC vent does not pull wires loose mid-run.
+
+================================================================================
+3. REFERENCE FIRMWARE CONTRACT (ESP32 + 2x DS18B20 + DHT11)
+================================================================================
+Already printing cleanly? Keep your working library/pins! Only confirm
+Serial outputs 5 comma-separated numbers matching this format at 115200 baud:
+
+#include <OneWire.h>             // Works on ESP32 Core v2.0.17 (or OneWireNg on Core 3.x)
+#include <DallasTemperature.h>
+#include <DHT.h>
+
+#define ONE_WIRE_BUS 27          // BOTH DS18B20 Yellow wires + 4.7k pull-up to 3V3 (Col 24)
+#define DHTPIN 26                // DHT11 Signal (out/S) -> P26
+#define DHTTYPE DHT11
+
+OneWire ow(ONE_WIRE_BUS);
+DallasTemperature ds(&ow);
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  ds.begin();
+  dht.begin();
+  Serial.print("# DS18B20 count: ");
+  Serial.println(ds.getDeviceCount());
+  Serial.println("ms,probe0_C,probe1_C,room_C,room_RH");
+}
+
+void loop() {
+  ds.requestTemperatures();
+  float p0 = ds.getTempCByIndex(0);
+  float p1 = ds.getTempCByIndex(1);
+  float roomC = dht.readTemperature();
+  float roomRH = dht.readHumidity();
+
+  Serial.printf("%lu,%.2f,%.2f,%.2f,%.1f\n", millis(), p0, p1, roomC, roomRH);
+  delay(5000);
+}
+
+Live Capture Watch-Outs (No Fake Data):
+- NEVER replace missing/stuck values (-127, 85, nan) with random numbers.
+- If a probe drops mid-run, push male jumper pins firmly into Col 24 (P27)
+  and keep the single 4.7 kOhm pull-up tight to 3V3 (two in parallel is
+  optional only if long extension cables drop signal).
+- If only 1 probe works or DHT11 outputs nan/coarse steps, send Nithish a
+  wiring photo + 5 Serial lines immediately.
+
+================================================================================
+4. TONIGHT'S FAST, RELIABLE 3-PHASE AC TEST PROTOCOL
+================================================================================
+1. Pick a Small, Enclosed Room:
+   Close all doors, windows, and curtains. Keep AC setpoint identical (e.g.
+   18 C) and fan speed fixed across all 3 runs. Take a photo of AC nameplate kW
+   for the report.
+
+2. Mount Sensors Safely:
+   - Supply Probe: tape 5-8 cm in discharge airflow (do not touch plastic louvers).
+   - Return Probe: tape at top intake grille.
+   - DHT11: mid-room (~1.5 m high, away from direct cold draft and ESP32 heat).
+
+3. CRITICAL NIGHT-TIME RULE (Avoid Rejected Curves!):
+   Because it is night, the room cools quickly. BEFORE starting EACH phase,
+   turn AC OFF, open the door, and run the ceiling fan for ~20 minutes so the
+   room warms back up to 28-30 C. twin/fit_tau.py rejects runs that drop less
+   than 0.5 C or plateau early!
+
+4. Run & Log All 3 Phases (20-25 min each):
+   Close Arduino Serial Monitor first, then run from repo root:
+
+   python -m logger.log_serial --port COMx --phase clean1 --setpoint-c 18 --duration-min 22
+   # Warm room back up (~20 min, door open + fan ON), power AC OFF, half-cover filter with cardboard & photo
+   python -m logger.log_serial --port COMx --phase blocked --setpoint-c 18 --duration-min 22
+   # Remove cardboard, warm room back up (~20 min)
+   python -m logger.log_serial --port COMx --phase clean2 --setpoint-c 18 --duration-min 22
+
+5. Record 45s Demo Video Clip:
+   Film mounting the probes, clean run, sliding cardboard over the filter,
+   and removing it.
+
+6. Validate & Push to GitHub:
+   Run:
+     python tools/check_csv.py data/raw
+     python -m twin.fit_tau data/raw
+   Then commit/push CSVs and ambient offsets to GitHub.
+
+================================================================================
+5. SPEC v2.1 QUICK REMINDER (PRODUCT NARRATIVE)
+================================================================================
+Pro tools (Testo/measureQuick) verify repairs for Rs 50k+ contractors; smart
+remotes (Sensibo/Cielo) just run hour timers. ClimaTwin is a Rs 1,281
+zero-mains Digital Twin guiding households through "Did cleaning the filter
+actually help?" (Guided Experiment), exposing "Cold Vent vs. Slow Room", and
+exporting a weather-adjusted Proof-of-Service / Pre-Visit Technician Brief.

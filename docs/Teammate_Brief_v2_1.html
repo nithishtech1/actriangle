@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ClimaTwin Team Hardware & Spec Guide v2.1</title>
+<style>
+  @page { size: A4 portrait; margin: 8mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #141413;
+    background: #ffffff;
+    font-size: 8.6pt;
+    line-height: 1.28;
+  }
+  .page-break { page-break-before: always; }
+  header {
+    border-bottom: 2px solid #141413;
+    padding-bottom: 5px;
+    margin-bottom: 7px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  h1 { font-size: 15pt; font-weight: 800; letter-spacing: -0.3px; }
+  .sub { font-size: 8.5pt; color: #57534E; font-weight: 600; }
+  .meta { text-align: right; font-size: 8pt; color: #57534E; }
+
+  .ai-box {
+    background: #FFF7ED;
+    border: 1.5px solid #EA580C;
+    border-radius: 6px;
+    padding: 6px 9px;
+    margin-bottom: 7px;
+  }
+  .ai-box h2 {
+    font-size: 8.8pt;
+    color: #C2410C;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+  }
+  .ai-box ul { margin-left: 15px; font-size: 8.3pt; }
+
+  .alert-go {
+    background: #ECFDF5;
+    border-left: 4px solid #059669;
+    padding: 5px 9px;
+    margin-bottom: 7px;
+    font-size: 8.4pt;
+  }
+
+  h2.sec {
+    font-size: 10pt;
+    font-weight: 800;
+    color: #141413;
+    border-bottom: 1px solid #E2DFD7;
+    padding-bottom: 2px;
+    margin: 7px 0 5px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 6px;
+    font-size: 8.2pt;
+  }
+  th, td {
+    border: 1px solid #D8D4CB;
+    padding: 3px 5px;
+    text-align: left;
+  }
+  th { background: #F4F3EF; font-weight: 700; }
+
+  .checklist { margin-left: 15px; margin-bottom: 6px; }
+  .checklist li { margin-bottom: 2px; }
+  code, pre {
+    font-family: Consolas, "Courier New", monospace;
+    background: #F4F3EF;
+    border: 1px solid #E2DFD7;
+    border-radius: 4px;
+  }
+  code { padding: 0.5px 3px; font-size: 7.9pt; }
+  pre {
+    padding: 6px 8px;
+    font-size: 7.7pt;
+    line-height: 1.28;
+    white-space: pre-wrap;
+    margin-bottom: 6px;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .box {
+    border: 1px solid #D8D4CB;
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: #FAF9F6;
+    font-size: 8.2pt;
+  }
+  .box h3 { font-size: 8.8pt; margin-bottom: 3px; color: #EA580C; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ClimaTwin: Hardware &amp; Test Guide (v2.1)</h1>
+    <div class="sub">Team TRIANGLE · CIT Make-A-Thon Round 2 · Architect Directive</div>
+  </div>
+  <div class="meta">
+    <strong>Updated: 10 Nov 2026 (21:18 IST)</strong><br>
+    Upload directly to ChatGPT / Codex for guidance
+  </div>
+</header>
+
+<div class="ai-box">
+  <h2>Instructions for ChatGPT / AI Assistant (Read First When Uploaded)</h2>
+  <ul>
+    <li><strong>Actual Hardware:</strong> The team does <strong>NOT</strong> have an SHT31. They have a working <strong>ESP32 WROOM NodeMCU 38-Pin</strong>, <strong>1× DHT11 Sensor Module</strong>, <strong>2× DS18B20 Probes (now working)</strong>, <strong>4.7kΩ pull-up resistors</strong>, and a <strong>GL12 840-pt breadboard</strong>.</li>
+    <li><strong>Strict Integrity Rule:</strong> NEVER write code that generates fake/random sensor readings in live mode.</li>
+    <li><strong>Data Contract:</strong> Firmware must print exactly 5 comma-separated values at 115200 baud: <code>ms,probe0_C,probe1_C,room_C,room_RH</code>.</li>
+    <li><strong>Core Fit Rule:</strong> Python's <code>twin/fit_tau.py</code> fits Newton cooling ONLY on <code>room_C</code> and rejects runs if a 3-min window is flatter than <code>-0.02 °C/min</code>.</li>
+  </ul>
+</div>
+
+<div class="alert-go">
+  <strong>STATUS UPDATE — DS18B20 ONLINE:</strong> Great work getting DS18B20 running! Keep your working pins/libraries and never generate random values in live mode. Before starting the 60-min AC runs, complete the <strong>2-minute verification check</strong> below so tonight's CSVs pass validation cleanly.
+</div>
+
+<h2 class="sec">1. Real Hardware BOM &amp; Pinout (₹1,281 Invoice INV2223-1599)</h2>
+<table>
+  <thead>
+    <tr><th>Component</th><th>Qty</th><th>ESP32 Pinout</th><th>Verification Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>ESP32 WROOM NodeMCU 38-Pin</strong></td><td>1</td><td>USB Type-C (115200 baud)</td><td>Use GPIO numbers in code (<code>27</code>, <code>26</code>), not <code>D4</code>. Avoid pins 34–39, 0, 2, 12, 15.</td></tr>
+    <tr><td><strong>DS18B20 Temperature Probes</strong></td><td>2</td><td>BOTH Yellow → <code>P27</code> (<code>GPIO27</code>, shared Col 24)<br>VCC (Red) → <code>3V3</code>, GND → <code>GND</code></td><td>Ensure <strong>both probes</strong> share <code>P27</code> cleanly (count = 2) and never read <code>-127.00</code> or <code>85.00</code>.</td></tr>
+    <tr><td><strong>4.7 kΩ Pull-Up Resistor</strong></td><td>1+</td><td>Between <code>P27</code> (Col 24) and <code>3V3</code></td><td>Single <code>4.7 kΩ</code> pull-up serves both shared DS18B20 probes.</td></tr>
+    <tr><td><strong>DHT11 Sensor Module</strong> <em>(Replaces SHT31)</em></td><td>1</td><td>Signal (<code>out</code>/<code>S</code>) → <code>P26</code> (<code>GPIO26</code>)<br>VCC → <code>3V3</code>, GND → <code>GND</code></td><td>Match tiny <code>+ / out / −</code> labels on your board; no extra resistor needed.</td></tr>
+    <tr><td><strong>GL12 840-Point Breadboard</strong></td><td>1</td><td>—</td><td><strong>Note:</strong> Power rails (+ / -) split at column 30; keep wiring left of Col 30.</td></tr>
+  </tbody>
+</table>
+
+<h2 class="sec">2. Pre-Test Verification Checklist (2 Minutes Before AC Run — Tasks 34 &amp; 35)</h2>
+<ol class="checklist">
+  <li><strong>Confirm Count = 2:</strong> Verify Serial Monitor prints <code># DS18B20 count: 2</code> (both Supply &amp; Return probes active, no <code>-127.00</code> or stuck <code>85.00</code> readings).</li>
+  <li><strong>Pinch Test &amp; Cable Labels (Task 35):</strong> Warm one probe between your fingers for 5 seconds—watch whether <code>probe0_C</code> or <code>probe1_C</code> rises, label cables <strong>SUPPLY</strong> / <strong>RETURN</strong>, and verify <code>PROBE_ROLES</code> in <code>config.py</code> matches!</li>
+  <li><strong>5-Min Ambient Offset + 5 Serial Lines (Task 34):</strong> Leave both probes + DHT11 side-by-side at room temp for ~5 min, record average offset vs ambient, and paste <strong>5 Serial lines</strong> to Nithish (checks whether DHT11 prints <code>0.1°C</code> decimals like <code>28.40</code> or whole integers like <code>28.00</code>).</li>
+  <li><strong>Mechanical Strain Relief:</strong> Loop jumper wires securely (electrical tape / zip-tie near the breadboard) so taping probes onto the AC vent does not tug loose a breadboard pin mid-run.</li>
+</ol>
+
+<h2 class="sec">3. Reference Firmware Contract (ESP32 + 2× DS18B20 + DHT11)</h2>
+<p style="font-size: 8.6pt; margin-bottom: 5px;"><strong>Already printing cleanly? Keep your working library/pins!</strong> Only confirm Serial prints <strong>5 comma-separated numbers</strong> matching this exact contract at <strong>115200 baud</strong>:</p>
+
+<pre>
+#include &lt;OneWire.h&gt;             // Works cleanly on ESP32 Core v2.0.17 (or use OneWireNg on Core 3.x)
+#include &lt;DallasTemperature.h&gt;
+#include &lt;DHT.h&gt;
+
+#define ONE_WIRE_BUS 27          // BOTH DS18B20 Yellow wires + single 4.7k pull-up to 3V3 (Col 24)
+#define DHTPIN 26                // DHT11 Signal (out/S) -> P26 (onboard pull-up included)
+#define DHTTYPE DHT11
+
+OneWire ow(ONE_WIRE_BUS);
+DallasTemperature ds(&amp;ow);
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  ds.begin();
+  dht.begin();
+  Serial.print("# DS18B20 count: ");
+  Serial.println(ds.getDeviceCount());
+  Serial.println("ms,probe0_C,probe1_C,room_C,room_RH");
+}
+
+void loop() {
+  ds.requestTemperatures();
+  float p0 = ds.getTempCByIndex(0);
+  float p1 = ds.getTempCByIndex(1);
+  float roomC = dht.readTemperature();
+  float roomRH = dht.readHumidity();
+
+  Serial.printf("%lu,%.2f,%.2f,%.2f,%.1f\n", millis(), p0, p1, roomC, roomRH);
+  delay(5000);
+}
+</pre>
+
+<div class="two-col">
+  <div class="box">
+    <h3>Step A: Verify &amp; Label Probes (Task 35)</h3>
+    <ol class="checklist" style="margin-bottom:0;">
+      <li>Confirm <code># DS18B20 count: 2</code> prints at startup.</li>
+      <li>Pinch one probe in your hand—whichever column rises is <code>probe0</code> or <code>probe1</code>. Label cables <strong>SUPPLY</strong> and <strong>RETURN</strong>.</li>
+      <li>Send Nithish <strong>5 Serial Monitor lines</strong> so we see if DHT11 outputs decimals (<code>28.40</code>) or integers (<code>28.00</code>), plus the 5-min side-by-side offset check!</li>
+    </ol>
+  </div>
+  <div class="box">
+    <h3>Step B: Live Capture Watch-Outs (No Fake Data)</h3>
+    <ul class="checklist" style="margin-bottom:0; margin-top:2px;">
+      <li>Never replace missing/stuck values (<code>-127</code>, <code>85</code>, <code>nan</code>) with random numbers.</li>
+      <li>If a probe drops mid-run, twist leads tightly onto solid male pins on <code>Col 24</code> (<code>P27</code>) and keep the <code>4.7 kΩ</code> pull-up firm to <code>3V3</code> (a second <code>4.7 kΩ</code> in parallel = <code>2.35 kΩ</code> is optional if using long cables).</li>
+      <li>If only 1 probe or coarse DHT11 ticks appear, send Nithish a wiring photo + 5 Serial lines immediately.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="sec">4. Tonight's Fast, Reliable 3-Phase AC Test Protocol</h2>
+<ol class="checklist">
+  <li><strong>Pick a Small, Enclosed Room:</strong> Close all doors, windows, and curtains. Keep AC setpoint identical (e.g. <strong>18°C</strong>) and fan speed fixed across all 3 runs. Note AC nameplate kW (photo) for the PDF report.</li>
+  <li><strong>Mount Safely:</strong> Tape <strong>Supply Probe</strong> 5–8 cm in discharge airflow (not touching plastic louvers). Tape <strong>Return Probe</strong> at top intake grille. Place <strong>DHT11</strong> mid-room (~1.5m high, away from direct cold draft and ESP32 heat).</li>
+  <li><strong>CRITICAL NIGHT-TIME RULE (Avoid Rejected Curves!):</strong> Since it is night, the room cools easily. <strong>Before starting EACH phase</strong>, turn the AC OFF, open the door, and run the ceiling fan for ~20 minutes so the room warms back up to <strong>28–30°C</strong>. Our fitter rejects runs that drop less than <code>0.5°C</code> or plateau early!</li>
+  <li><strong>Run &amp; Log All 3 Phases (20–25 min each):</strong> Close Serial Monitor first, then run from repo root:
+    <pre style="margin-top:4px; margin-bottom:4px;">python -m logger.log_serial --port COMx --phase clean1 --setpoint-c 18 --duration-min 22
+# Warm room back up (~20 min, door open + fan ON), power AC OFF, half-cover filter with cardboard &amp; photo!
+python -m logger.log_serial --port COMx --phase blocked --setpoint-c 18 --duration-min 22
+# Remove cardboard, warm room back up (~20 min)
+python -m logger.log_serial --port COMx --phase clean2 --setpoint-c 18 --duration-min 22</pre>
+  </li>
+  <li><strong>Record 45s Demo Video Clip:</strong> Film mounting the probes, clean run, sliding cardboard over the filter, and removing it.</li>
+  <li><strong>Validate &amp; Push to GitHub:</strong> Run <code>python tools/check_csv.py data/raw</code> and <code>python -m twin.fit_tau data/raw</code>, then push CSVs + offsets to GitHub.</li>
+</ol>
+
+<h2 class="sec">5. Spec v2.1 Quick Reminder (Product Narrative)</h2>
+<p style="font-size: 9.2pt;"><strong>Updated Positioning:</strong> Pro tools (Testo/measureQuick) verify repairs for ₹50k+ contractors; smart remotes (Sensibo/Cielo) just run hour timers. ClimaTwin is a <strong>₹1,281 zero-mains Digital Twin</strong> guiding households through <strong>"Did cleaning the filter actually help?"</strong> (Guided Experiment), exposing <strong>"Cold Vent vs. Slow Room"</strong>, and exporting a weather-adjusted Proof-of-Service / Pre-Visit Technician Brief.</p>
+
+</body>
+</html>

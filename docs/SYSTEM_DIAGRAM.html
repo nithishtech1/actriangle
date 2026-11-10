@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimaTwin - System Architecture (Task 101)</title>
+<style>
+  :root {
+    --primary: #0f3d4c;
+    --accent: #007f83;
+    --accent-orange: #d97538;
+    --bg-card: #f8fafb;
+    --border: #d0dde2;
+    --text-dark: #122a3c;
+    --text-muted: #5f6d78;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-dark);
+    background: #eaeff2;
+    padding: 24px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+  }
+  .title-group h1 {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+  }
+  .title-group .sub {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .badge {
+    display: inline-block;
+    background: #e6f4f4;
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  
+  /* Grid Layout */
+  .grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .card.highlight {
+    border-left: 4px solid var(--accent);
+  }
+  .card.highlight-orange {
+    border-left: 4px solid var(--accent-orange);
+  }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card h2 .num {
+    background: var(--primary);
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  
+  ul.spec-list {
+    list-style: none;
+  }
+  ul.spec-list li {
+    padding: 3px 0;
+    border-bottom: 1px dashed #e1e8eb;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+  }
+  ul.spec-list li:last-child { border-bottom: none; }
+  ul.spec-list li .label { font-weight: 600; color: #324756; }
+  ul.spec-list li .val { color: #5f6d78; text-align: right; }
+  
+  /* Pipeline Arrow Flow */
+  .pipeline-flow {
+    display: flex;
+    justify-content: space-between;
+    background: #f0f5f7;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .step {
+    text-align: center;
+    flex: 1;
+  }
+  .step .step-title {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--primary);
+  }
+  .step .step-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .arrow {
+    font-size: 18px;
+    color: var(--accent);
+    padding: 0 4px;
+    user-select: none;
+  }
+
+  /* Mathematical Equation Box */
+  .math-box {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 11px;
+    color: #0b3b4a;
+  }
+  
+  /* Footer Checklist */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+  .disclaimer {
+    max-width: 650px;
+    font-style: italic;
+  }
+
+  /* Print Optimization */
+  @media print {
+    body { background: #ffffff; padding: 0; font-size: 11.5px; }
+    .page { border: none; box-shadow: none; padding: 10mm; max-width: 100%; }
+    @page { size: A4 portrait; margin: 8mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="title-group">
+      <span class="badge">MAKE-A-THON ROUND 2 PROTOTYPE</span>
+      <h1>ClimaTwin: Cyber-Physical Architecture</h1>
+      <div class="sub">Low-Cost Split AC Digital Twin & Performance Verification Pipeline</div>
+    </div>
+    <div class="meta">
+      <strong>Team TRIANGLE (CIT)</strong><br>
+      Track 2: Digital Twin<br>
+      Date: 11 Nov 2026 | Round 2
+    </div>
+  </header>
+
+  <!-- Flow Strip -->
+  <div class="pipeline-flow">
+    <div class="step">
+      <div class="step-title">1. Airflow & Sensors</div>
+      <div class="step-desc">2× DS18B20 + DHT11</div>
+    </div>
+    <div class="arrow">➔</div>
+    <div class="step">
+      <div class="step-title">2. ESP32 UART</div>
+      <div class="step-desc">115200 baud raw stream</div>
+    </div>
+    <div class="arrow">➔</div>
+    <div class="step">
+      <div class="step-title">3. Ingestion Logger</div>
+      <div class="step-desc">Offsets, reboot check, CSV</div>
+    </div>
+    <div class="arrow">➔</div>
+    <div class="step">
+      <div class="step-title">4. Twin Fit (τ)</div>
+      <div class="step-desc">Newton 15-min pull-down</div>
+    </div>
+    <div class="arrow">➔</div>
+    <div class="step">
+      <div class="step-title">5. Guided Experiment</div>
+      <div class="step-desc">Streamlit + PDF Proof</div>
+    </div>
+  </div>
+
+  <div class="grid-4">
+    <!-- Card 1 -->
+    <div class="card highlight">
+      <h2><span class="num">1</span> Physical Instrumentation & Wiring</h2>
+      <ul class="spec-list">
+        <li>
+          <span class="label">Supply Air Probe</span>
+          <span class="val">DS18B20 #1 (5–8 cm in free airflow, P27 / GPIO27)</span>
+        </li>
+        <li>
+          <span class="label">Return Air Probe</span>
+          <span class="val">DS18B20 #2 (Intake grille, shared P27 / GPIO27 bus)</span>
+        </li>
+        <li>
+          <span class="label">Room Temp & RH</span>
+          <span class="val">DHT11 3-Pin Module (P26 / GPIO26, 3V3)</span>
+        </li>
+        <li>
+          <span class="label">Sensor Placement</span>
+          <span class="val">DHT11 mid-room (~1.5m high, away from cold draft)</span>
+        </li>
+        <li>
+          <span class="label">Electrical Safety</span>
+          <span class="val">100% low-voltage USB-powered (ESP32 NodeMCU 38-Pin). No mains wiring.</span>
+        </li>
+      </ul>
+      <div class="math-box">
+        Bus: OneWire(P27, 1× 4.7kΩ pull-up) + Digital(P26)<br>
+        Firmware: 115200 baud, ~5s spacing (climatwin_esp32.ino)
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card highlight">
+      <h2><span class="num">2</span> Data Contract & Ingestion</h2>
+      <ul class="spec-list">
+        <li>
+          <span class="label">Microcontroller Output</span>
+          <span class="val"><code>ms, probe0_C, probe1_C, room_C, room_RH</code></span>
+        </li>
+        <li>
+          <span class="label">Python Logger</span>
+          <span class="val"><code>logger/log_serial.py</code> (per-row flush)</span>
+        </li>
+        <li>
+          <span class="label">Sanitization</span>
+          <span class="val">Offset calibration + monotonic reboot guard</span>
+        </li>
+        <li>
+          <span class="label">Outdoor Source</span>
+          <span class="val">Open-Meteo REST API (10-min cache / typed fallback)</span>
+        </li>
+        <li>
+          <span class="label">Storage Schema</span>
+          <span class="val">8-col CSV (<code>ts_iso, ms, supply, return...</code>)</span>
+        </li>
+      </ul>
+      <div class="math-box">
+        Sidecar Metadata: *.meta.json (setpoint, fan, offsets)<br>
+        Phases: clean1 (baseline) ➔ blocked (filter fault) ➔ clean2
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card highlight-orange">
+      <h2><span class="num">3</span> Digital Twin Core (twin/)</h2>
+      <ul class="spec-list">
+        <li>
+          <span class="label">Onset Detection</span>
+          <span class="val">Piecewise linear regression (slope &lt; -0.06)</span>
+        </li>
+        <li>
+          <span class="label">Noise Filter</span>
+          <span class="val">3-sample rolling median window</span>
+        </li>
+        <li>
+          <span class="label">Mathematical Fit</span>
+          <span class="val">First-order Newton pull-down via SciPy curve_fit</span>
+        </li>
+        <li>
+          <span class="label">Health Ratio</span>
+          <span class="val"><code>min(100, 100 * τ_baseline / τ_now)</code></span>
+        </li>
+        <li>
+          <span class="label">Alert Rule</span>
+          <span class="val">Health &lt; 80 for 3 consecutive 60s fits</span>
+        </li>
+      </ul>
+      <div class="math-box">
+        Model: T_room(t) = T_final + (T_0 - T_final) · exp(-t / τ)<br>
+        Fit Window: First 15 minutes of detected cooling (R² ≥ 0.90)
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="card highlight-orange">
+      <h2><span class="num">4</span> Verification & User Interface</h2>
+      <ul class="spec-list">
+        <li>
+          <span class="label">Dashboard UI</span>
+          <span class="val">Streamlit (<code>app/dashboard.py</code>)</span>
+        </li>
+        <li>
+          <span class="label">Visualization</span>
+          <span class="val">4 Telemetry lines + Digital Twin Curve Overlay</span>
+        </li>
+        <li>
+          <span class="label">Demo Acceleration</span>
+          <span class="val">10× Replay engine with timeline scrubbing</span>
+        </li>
+        <li>
+          <span class="label">Push Alert</span>
+          <span class="val">Telegram bot notification on sustained degradation</span>
+        </li>
+        <li>
+          <span class="label">Proof of Service</span>
+          <span class="val">2-Page PDF (FPDF2): Normalized Δτ% & ₹ impact</span>
+        </li>
+      </ul>
+      <div class="math-box">
+        Weather Normalization: τ_expected = m · T_outdoor + c<br>
+        Energy Savings (est): minutes_saved / 60 × kW_nameplate × ₹/kWh
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disclaimer">
+      <strong>Honest Scientific Disclosure:</strong> System tracks sensible cooling pull-down dynamics. No direct electrical mains power is measured. Energy and rupee figures are estimates (runtime × nameplate kW × tariff), not physical power meter readings.
+    </div>
+    <div style="text-align: right;">
+      <strong>Team TRIANGLE</strong><br>
+      Nithish P · Nikil S · Harish S
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>
