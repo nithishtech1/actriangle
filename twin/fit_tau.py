@@ -63,6 +63,8 @@ def detect_cooling_start(t, smoothed) -> int:
         j = int(np.searchsorted(t, t[i] + 1.5))
         if j >= len(t):
             break
+        if j - i < 2:
+            continue
         slope = np.polyfit(t[i:j + 1] - t[i], y[i:j + 1], 1)[0]
         if slope < -0.06 and y[i] - np.median(y[max(i, j - 2):j + 1]) >= 0.15:
             left = max(0, int(np.searchsorted(t, t[i] - 1)))
@@ -77,7 +79,8 @@ def detect_cooling_start(t, smoothed) -> int:
                 error = float(np.sum((local_y - design @ params) ** 2))
                 if error < best[0]:
                     best = (error, onset)
-            return best[1]
+            if best[0] < float("inf"):
+                return best[1]
     raise FitError("No sustained cooling detected.")
 
 

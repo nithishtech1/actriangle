@@ -205,6 +205,10 @@ def main():
     parser.add_argument("--weather-baselines", nargs="*", default=[])
     parser.add_argument("--conditions-confirmed", action="store_true", help="Confirm comparable AC, fan and room conditions for all selected recordings.")
     args = parser.parse_args()
+    if args.kw is not None and args.kw <= 0:
+        args.kw = None
+    if args.tariff is not None and args.tariff <= 0:
+        args.tariff = None
     try:
         content = build_report(expand_paths(args.files), kw=args.kw, tariff=args.tariff,
                                target=args.target_c, setpoint=args.setpoint_c,

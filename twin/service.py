@@ -106,10 +106,10 @@ def assess_service(paths, *, weather_baselines=(), setpoint=None, conditions_con
             result['weather_detail'] = (f'{model.n_runs} before-service runs, {model.min_C:.1f}-{model.max_C:.1f} C; '
                                         f'expected old tau {expected:.2f} min at {after["outdoor_mean_C"]:.1f} C.')
             warnings.append('Small weather-regression demonstration; prediction uncertainty and seasonal accuracy are not validated.')
-        except (ValueError, FitError, DataError) as exc:
+        except (ValueError, FitError, DataError, OSError) as exc:
             result['weather_detail'] = f'Unavailable: {exc}'
-            reasons.append(result['weather_detail'])
-    else:
+            warnings.append(result['weather_detail'])
+    if result['normalized_improvement_pct'] is None:
         values = [r['outdoor_mean_C'] for r in (before, after)]
         if all(v is not None for v in values) and abs(values[0] - values[1]) <= config.SERVICE_MAX_OUTDOOR_DIFF_C:
             result['basis'] = 'matched outdoor conditions (raw comparison)'
