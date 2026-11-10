@@ -77,11 +77,15 @@ except (DataError, FitError, OSError) as exc:
     st.stop()
 
 baseline = None
+baseline_error = None
+baseline_duration = None
 try:
     if baseline_path:
-        baseline = fit_tau(read_run(baseline_path, live=not replay))
-except (DataError, FitError, OSError):
-    pass
+        baseline_frame = read_run(baseline_path, live=not replay)
+        baseline_duration = float(baseline_frame.elapsed_min.iloc[-1])
+        baseline = fit_tau(baseline_frame)
+except (DataError, FitError, OSError) as exc:
+    baseline_error = str(exc)
 identity = (str(selected), str(baseline_path), baseline.tau_min if baseline else None, replay)
 if st.session_state.get("identity") != identity:
     st.session_state.identity = identity
@@ -154,13 +158,20 @@ def monitor_panel():
         st.info("Warm-back / reset phase. Sensor monitoring continues; health fitting is paused.")
         return
     if baseline is None:
+        current_baseline_error = baseline_error
+        current_baseline_duration = baseline_duration
         try:
             if baseline_path:
-                fit_tau(read_run(baseline_path, live=True))
+                baseline_frame = read_run(baseline_path, live=True)
+                current_baseline_duration = float(baseline_frame.elapsed_min.iloc[-1])
+                fit_tau(baseline_frame)
                 st.rerun(scope="app")
-        except (DataError, FitError, OSError):
-            pass
-        st.info("Collecting baseline: live sensors are available. Health needs a valid 15-minute clean1 run.")
+        except (DataError, FitError, OSError) as exc:
+            current_baseline_error = str(exc)
+        if current_baseline_error and (current_baseline_duration is None or current_baseline_duration > 5):
+            st.error(f"Clean baseline rejected: {current_baseline_error}")
+        else:
+            st.info("Collecting baseline: live sensors are available. Health needs a valid 15-minute clean1 run.")
         return
     monitor = st.session_state.monitor
     if monitor.history and view.elapsed_min.iloc[-1] < monitor.history[-1]["elapsed_min"]:
