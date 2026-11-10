@@ -35,6 +35,22 @@ def cooling_curve(minutes, final_C, start_C, tau_min):
     return final_C + (start_C - final_C) * np.exp(-np.asarray(minutes) / tau_min)
 
 
+def check_continuous_cooling(t, y):
+    """Conservative eligibility gate, not a compressor-state detector.
+
+    Every three-minute segment must still show a measurable decline. A run
+    that reaches a plateau too early must be repeated under sustained cooling;
+    fitting the plateau can produce a spuriously small, apparently healthy tau.
+    """
+    for left in np.arange(0, max(0, t[-1] - 3) + 0.001, 1):
+        mask = (t >= left) & (t <= left + 3)
+        if mask.sum() < 10:
+            continue
+        slope = np.polyfit(t[mask] - left, y[mask], 1)[0]
+        if slope >= -0.02:
+            raise FitError("Cooling interrupted or plateaued: repeat a sustained cooling run.")
+
+
 def detect_cooling_start(t, smoothed) -> int:
     """First sustained 90-second decline; tolerates pre-cooling flat samples.
 
@@ -82,6 +98,7 @@ def fit_tau(frame: pd.DataFrame, *, min_duration_min=None) -> FitResult:
         raise FitError("Gap over 30 seconds in cooling window; use an uninterrupted run.")
     if y[0] - np.median(y[-5:]) < 0.5:
         raise FitError("Cooling drop below 0.5 C; tau is not identifiable.")
+    check_continuous_cooling(x, y)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", OptimizeWarning)

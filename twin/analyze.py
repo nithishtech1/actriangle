@@ -19,17 +19,27 @@ def analyze_run(path, setpoint=None):
     df = read_run(path)
     fit = fit_tau(df)
     sidecar = path.with_suffix(".meta.json")
-    if setpoint is None and sidecar.exists():
+    metadata = {}
+    if sidecar.exists():
         try:
-            setpoint = json.loads(sidecar.read_text(encoding="utf-8" )).get("setpoint_C")
+            metadata = json.loads(sidecar.read_text(encoding="utf-8"))
         except (ValueError, OSError):
             pass
+    if not isinstance(metadata, dict):
+        metadata = {}
+    # Recording metadata takes precedence over a report-wide fallback.
+    setpoint = metadata.get("setpoint_C") if metadata.get("setpoint_C") is not None else setpoint
     window = df[(df.elapsed_min >= fit.start_min) &
                 (df.elapsed_min <= fit.start_min + config.FIT_WINDOW_MIN)]
     outdoor = window.outdoor_C.dropna()
     return {
         "file": path.name, "phase": str(df.phase.iloc[0]), "synthetic": is_fake(path),
         **asdict(fit), "setpoint_C": setpoint,
+        "fan_setting": metadata.get("fan_setting"),
+        "test_unit": metadata.get("test_unit"),
+        "outdoor_coverage": float(window.outdoor_C.notna().mean()),
+        "recording_start": str(df.ts_iso.iloc[0]),
+        "recording_end": str(df.ts_iso.iloc[-1]),
         "outdoor_mean_C": float(outdoor.mean()) if len(outdoor) else None,
         "outdoor_min_C": float(outdoor.min()) if len(outdoor) else None,
         "outdoor_max_C": float(outdoor.max()) if len(outdoor) else None,

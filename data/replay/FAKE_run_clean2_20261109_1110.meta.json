@@ -1,0 +1,6 @@
+{
+  "synthetic": true,
+  "setpoint_C": 18,
+  "fan_setting": "high",
+  "test_unit": "FAKE-demo-room"
+}

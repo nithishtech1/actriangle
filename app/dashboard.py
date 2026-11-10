@@ -13,6 +13,7 @@ from report.make_report import build_report
 from twin.data import DataError, is_fake, read_run
 from twin.fit_tau import FitError, fit_tau, twin_overlay
 from twin.monitor import Monitor
+from twin.service import assess_service
 
 st.set_page_config(page_title="ClimaTwin | Cooling performance", page_icon="❄️", layout="wide")
 st.title("ClimaTwin")
@@ -55,8 +56,7 @@ with st.sidebar:
     baseline_options = phase_files(files, "clean1", fake)
     if not baseline_options:
         st.warning("A matching clean1 CSV is required to learn the baseline.")
-        st.stop()
-    baseline_path = st.selectbox("Clean1 baseline", baseline_options, format_func=lambda p: p.name)
+    baseline_path = st.selectbox("Clean1 baseline", baseline_options, format_func=lambda p: p.name) if baseline_options else None
     speed = st.select_slider("Replay speed", options=[1, 5, 10, 20], value=10) if replay else 1
     notifications = st.checkbox("Send live Telegram alerts", value=False, disabled=replay or fake,
                                  help="Requires your bot token and chat ID in .env. Replay never sends.")
@@ -70,16 +70,22 @@ else:
 
 try:
     source = read_run(selected, live=not replay)
-    baseline = fit_tau(read_run(baseline_path, live=not replay))
+
 except (DataError, FitError, OSError) as exc:
     st.info(f"Waiting for usable recordings: {exc}")
     st.button("Refresh baseline")
     st.stop()
 
-identity = (str(selected), str(baseline_path), baseline.tau_min, replay)
+baseline = None
+try:
+    if baseline_path:
+        baseline = fit_tau(read_run(baseline_path, live=not replay))
+except (DataError, FitError, OSError):
+    pass
+identity = (str(selected), str(baseline_path), baseline.tau_min if baseline else None, replay)
 if st.session_state.get("identity") != identity:
     st.session_state.identity = identity
-    st.session_state.monitor = Monitor(baseline)
+    st.session_state.monitor = Monitor(baseline) if baseline else None
     st.session_state.cursor = 0.0
     st.session_state.last_tick = time.monotonic()
     st.session_state.notices = []
@@ -89,7 +95,7 @@ duration = float(source.elapsed_min.iloc[-1])
 if replay:
     def seek_changed():
         st.session_state.cursor = float(st.session_state.seek)
-        st.session_state.monitor = Monitor(baseline)
+        st.session_state.monitor = Monitor(baseline) if baseline else None
         st.session_state.last_tick = time.monotonic()
         st.session_state.notices = []
 
@@ -121,9 +127,6 @@ def monitor_panel():
     except (DataError, OSError) as exc:
         st.warning(f"Waiting for logger: {exc}")
         return
-    if df.phase.iloc[0] == "reset":
-        st.info("Warm-back / reset phase. Logging continues; health fitting is paused.")
-        return
     now = time.monotonic()
     dt = now - st.session_state.last_tick
     st.session_state.last_tick = now
@@ -138,9 +141,30 @@ def monitor_panel():
     if view.empty:
         st.info("Waiting for the first sample.")
         return
+    left, right = st.columns(2)
+    for column, title, unit, container in (
+        ("supply_C", "Supply air", "°C", left), ("return_C", "Return air", "°C", right),
+        ("room_C", "Room temperature", "°C", left), ("room_RH", "Room humidity", "% RH", right),
+    ):
+        with container:
+            st.subheader(title)
+            st.line_chart(view.set_index("elapsed_min")[[column]], height=180,
+                          x_label="Elapsed minutes", y_label=unit)
+    if df.phase.iloc[0] == "reset":
+        st.info("Warm-back / reset phase. Sensor monitoring continues; health fitting is paused.")
+        return
+    if baseline is None:
+        try:
+            if baseline_path:
+                fit_tau(read_run(baseline_path, live=True))
+                st.rerun(scope="app")
+        except (DataError, FitError, OSError):
+            pass
+        st.info("Collecting baseline: live sensors are available. Health needs a valid 15-minute clean1 run.")
+        return
     monitor = st.session_state.monitor
     if monitor.history and view.elapsed_min.iloc[-1] < monitor.history[-1]["elapsed_min"]:
-        monitor = st.session_state.monitor = Monitor(baseline)
+        monitor = st.session_state.monitor = Monitor(baseline) if baseline else None
     events = monitor.advance(view)
     stale = not replay and time.time() - path.stat().st_mtime > 30
     for event in events:
@@ -172,15 +196,6 @@ def monitor_panel():
         st.caption("Initial 15-minute pull-down evaluated. Result is held; a new cooling run is needed for a new assessment.")
     else:
         st.caption("Provisional fits from minute 8; final fit uses the first 15 minutes. Alert cadence follows recording time.")
-    left, right = st.columns(2)
-    for column, title, unit, container in (
-        ("supply_C", "Supply air", "°C", left), ("return_C", "Return air", "°C", right),
-        ("room_C", "Room temperature", "°C", left), ("room_RH", "Room humidity", "% RH", right),
-    ):
-        with container:
-            st.subheader(title)
-            st.line_chart(view.set_index("elapsed_min")[[column]], height=180,
-                          x_label="Elapsed minutes", y_label=unit)
     st.subheader("Live room response / clean twin")
     if monitor.latest is not None:
         visible = view[(view.elapsed_min >= monitor.latest.start_min) &
@@ -223,11 +238,33 @@ tariff = estimate_fields[1].number_input("Tariff ₹/kWh (0 = unknown)", 0.0, 10
 target = estimate_fields[2].number_input("Estimate target °C", 16.0, 35.0, 26.0, step=0.5)
 setpoint = estimate_fields[3].number_input("AC setpoint °C (0 = unknown)", 0.0, 35.0,
                                           float(config.SETPOINT_C or 0), step=1.0)
-report_key = (tuple((str(p), p.stat().st_mtime_ns) for p in report_paths), kw, tariff, target, setpoint)
+st.caption("Service check: blocked = before service; clean2 = after service; clean1 = healthy reference.")
+confirmed = st.checkbox("I confirm the same AC, fan setting, doors/windows, occupancy and comparable solar conditions", key="conditions_confirmed")
+weather_folder = st.text_input("Before-service weather training folder (optional)", value=str(Path(folder) / "weather"))
+weather_options = phase_files(run_paths(weather_folder), "blocked", fake)
+weather_paths = st.multiselect("Weather training recordings", weather_options, format_func=lambda p: p.name)
+assessment = None
+if len(report_paths) == 3:
+    try:
+        assessment = assess_service(report_paths, weather_baselines=weather_paths,
+                                    setpoint=setpoint or None, conditions_confirmed=confirmed)
+        getattr(st, {"improved": "success", "not_improved": "warning", "inconclusive": "info"}[assessment["status"]])(assessment["label"])
+        for reason in assessment["reasons"]:
+            st.write(reason)
+        st.caption("Comparison basis: " + assessment["basis"])
+        st.caption(assessment["weather_detail"])
+        cols = st.columns(2)
+        for col, label, key in [(cols[0], "Raw tau reduction", "raw_improvement_pct"), (cols[1], "Weather-normalized tau reduction", "normalized_improvement_pct")]:
+            col.metric(label, "Unavailable" if assessment[key] is None else f"{assessment[key]:.1f}%")
+        st.caption("Cooling performance evidence cannot certify every service procedure. Decision margins are provisional.")
+    except (DataError, FitError, ValueError, OSError) as exc:
+        st.info(f"Service check unavailable: {exc}")
+report_key = (tuple((str(p), p.stat().st_mtime_ns) for p in report_paths), kw, tariff, target, setpoint, confirmed, tuple((str(p), p.stat().st_mtime_ns) for p in weather_paths))
 if st.button("Generate report", disabled=len(report_paths) != 3):
     try:
         st.session_state.report_bytes = build_report(report_paths, kw=kw or None, tariff=tariff or None,
-                                                     target=target, setpoint=setpoint or None)
+                                                     target=target, setpoint=setpoint or None,
+                                                     weather_baselines=weather_paths, conditions_confirmed=confirmed)
         st.session_state.report_key = report_key
         st.success("Report generated. Download below.")
     except (DataError, FitError, ValueError, OSError) as exc:

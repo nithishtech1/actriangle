@@ -74,3 +74,10 @@ MIN_FIT_R2 = 0.90
 MAX_SAMPLE_GAP_S = 30.0      # reject an interrupted fitting window
 SETPOINT_C = None           # enter the actual setting; not inferred from sensor data
 REPORTS = ROOT / "reports"
+
+# Provisional service-check policy; validate with real repeated runs.
+SERVICE_MIN_IMPROVEMENT_PCT = 15.0
+SERVICE_MAX_START_DIFF_C = 1.0
+SERVICE_MAX_OUTDOOR_DIFF_C = 1.0
+SERVICE_MAX_OUTDOOR_RANGE_C = 2.0
+SERVICE_MAX_REL_TAU_STD = 0.25

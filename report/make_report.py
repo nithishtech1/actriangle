@@ -14,6 +14,7 @@ from twin.analyze import analyze_run, compare_phases, savings_estimate
 from twin.data import DataError, expand_paths, read_run
 from twin.fit_tau import FitError, fit_tau, twin_overlay
 from twin.normalization import fit_weather_model
+from twin.service import assess_service
 
 
 class ServicePDF(FPDF):
@@ -79,33 +80,35 @@ def fmt(value, digits=2):
 
 
 def build_report(paths, *, kw=None, tariff=None, target=26.0, setpoint=None,
-                 weather_baselines=()):
+                 weather_baselines=(), conditions_confirmed=False):
     paths = list(map(Path, paths))
-    records = [analyze_run(p, setpoint) for p in paths]
+    assessment = assess_service(paths, weather_baselines=weather_baselines, setpoint=setpoint,
+                                conditions_confirmed=conditions_confirmed)
+    if len(paths) != 3:
+        raise ValueError("Select exactly one clean1, blocked and clean2 run.")
+    records = assessment['records']
+    by_phase = {r['phase']: r for r in records}
+    order = [by_phase[p] for p in ('clean1', 'blocked', 'clean2') if p in by_phase]
+    if len(order) != 3:
+        pdf = ServicePDF(fake=assessment['synthetic'])
+        pdf.alias_nb_pages()
+        pdf.add_page()
+        pdf.heading('Proof of Service: INCONCLUSIVE')
+        for reason in assessment['reasons'] + assessment['warnings']:
+            pdf.paragraph(reason)
+        pdf.paragraph('No service-success claim or cost estimate is issued from invalid cooling fits.')
+        for p in paths:
+            pdf.paragraph(p.name, 8)
+        return bytes(pdf.output())
     comparison = compare_phases(records)
-    by_phase = {r["phase"]: r for r in records}
-    order = [by_phase[p] for p in ("clean1", "blocked", "clean2")]
     frames = {str(read_run(p).phase.iloc[0]): read_run(p) for p in paths}
     fits = {phase: fit_tau(df) for phase, df in frames.items()}
-    estimate = savings_estimate(by_phase["blocked"], by_phase["clean2"], kw=kw, tariff=tariff, target=target)
-    weather_text = "Unavailable: need at least two independent BEFORE-service (blocked) runs at distinct outdoor temperatures. These three phases alone cannot establish weather normalization."
-    if weather_baselines:
-        training_paths = list(map(Path, weather_baselines))
-        if len({p.resolve() for p in training_paths}) != len(training_paths):
-            raise ValueError("Weather training files must be distinct independent recordings.")
-        training = [analyze_run(p) for p in training_paths]
-        if any(r["phase"] != "blocked" or r["synthetic"] != order[0]["synthetic"] for r in training):
-            raise ValueError("Report weather training must use before-service blocked runs of matching provenance.")
-        model = fit_weather_model(training)
-        outdoor_now = by_phase["clean2"]["outdoor_mean_C"]
-        if outdoor_now is None:
-            raise ValueError("Recovery run has no outdoor temperature for normalization.")
-        expected = model.predict(outdoor_now)
-        normalized = (expected - fits["clean2"].tau_min) / expected * 100
-        weather_text = (f"Normalized reduction in tau: {normalized:.1f}%. Expected old-condition tau "
-                        f"{expected:.2f} min at {outdoor_now:.1f} C; actual {fits['clean2'].tau_min:.2f} min. "
-                        f"Linear model from {model.n_runs} before-service runs spanning {model.min_C:.1f}-{model.max_C:.1f} C. "
-                        "Small demonstration only; not validated across seasons.")
+    estimate = savings_estimate(by_phase['blocked'], by_phase['clean2'], kw=kw, tariff=tariff, target=target)
+    if assessment['status'] == 'inconclusive':
+        estimate = {'available': False, 'reason': 'Service comparison is inconclusive; repeat or complete the test.'}
+    weather_text = assessment['weather_detail']
+    if assessment['normalized_improvement_pct'] is not None:
+        weather_text = f"Normalized reduction in tau: {assessment['normalized_improvement_pct']:.1f}%. " + weather_text
     pdf = ServicePDF(fake=order[0]["synthetic"])
     pdf.alias_nb_pages()
     pdf.set_title("ClimaTwin Proof-of-Service - " + ("FAKE demo" if pdf.fake else "recorded runs"))
@@ -113,6 +116,10 @@ def build_report(paths, *, kw=None, tariff=None, target=26.0, setpoint=None,
     pdf.set_font("Helvetica", "B", 25)
     pdf.cell(0, 13, "Proof of Service", new_x="LMARGIN", new_y="NEXT")
     pdf.paragraph("Before / blocked filter / recovery comparison | " + datetime.now().astimezone().isoformat(timespec="minutes"), 9)
+    pdf.heading(assessment['label'])
+    pdf.paragraph('Basis: ' + assessment['basis'], 9)
+    for reason in assessment['reasons']:
+        pdf.paragraph(reason, 9)
     raw = comparison["raw_improvement_pct"]
     pdf.heading(f"Raw cooling-time improvement: {raw:.1f}%")
     pdf.paragraph(f"'Cooling {raw:.1f}% faster' denotes a reduction in the fitted time constant: "
@@ -177,9 +184,13 @@ def build_report(paths, *, kw=None, tariff=None, target=26.0, setpoint=None,
     pdf.paragraph("Alert default: health = min(100, 100 x tau_clean1 / tau_now); below 80 for three "
                   "consecutive 60-second fits. Threshold remains provisional until real runs support calibration. "
                   "Inverter cycling, occupancy, solar gain and humidity can confound the model.", 9)
-    pdf.heading("06 / Source recordings")
+    pdf.heading("06 / Decision limits and source recordings")
+    for warning in assessment['warnings']:
+        pdf.paragraph(warning, 8)
     for record in order:
         pdf.paragraph(record["file"], 8)
+    for path in weather_baselines:
+        pdf.paragraph('Weather training: ' + Path(path).name, 8)
     return bytes(pdf.output())
 
 
@@ -192,11 +203,12 @@ def main():
     parser.add_argument("--target-c", type=float, default=26)
     parser.add_argument("--setpoint-c", type=float, default=config.SETPOINT_C)
     parser.add_argument("--weather-baselines", nargs="*", default=[])
+    parser.add_argument("--conditions-confirmed", action="store_true", help="Confirm comparable AC, fan and room conditions for all selected recordings.")
     args = parser.parse_args()
     try:
         content = build_report(expand_paths(args.files), kw=args.kw, tariff=args.tariff,
                                target=args.target_c, setpoint=args.setpoint_c,
-                               weather_baselines=expand_paths(args.weather_baselines))
+                               weather_baselines=expand_paths(args.weather_baselines), conditions_confirmed=args.conditions_confirmed)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(content)
         print(f"Report saved: {args.output}")

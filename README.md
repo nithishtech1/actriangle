@@ -22,6 +22,9 @@ Team TRIANGLE, Make-A-Thon (CIT), Track 2 Digital Twin.
 
 ## Setup
 
+For the completed service-verification workflow, start with [SERVICE_DEMO.md](docs/SERVICE_DEMO.md).
+The dashboard and PDF share one verdict, with comparable-condition checks and optional weather normalization.
+
 The Person 3 software is implemented. Start with [the quick-start guide](docs/QUICKSTART.md).
 See [task-by-task status](docs/PERSON3_STATUS.md) for what is software-tested and what still needs the ESP32.
 There are **no real hardware results yet**. The included `FAKE_` recordings are software fixtures.
