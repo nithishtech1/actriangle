@@ -6,3 +6,6 @@ venv/
 .DS_Store
 .ipynb_checkpoints/
 *.log
+.pytest_cache/
+.coverage
+reports/

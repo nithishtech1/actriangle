@@ -16,7 +16,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config
 
-NAME_RE = re.compile(r"^(FAKE_)?run_(clean1|blocked|clean2|reset)_\d{8}_\d{4}\.csv$")
+NAME_RE = re.compile(r"^(FAKE_)?run_(clean1|blocked|clean2|reset)_\d{8}_\d{4}(?:_\d{2,})?\.csv$")
 
 
 def expand(args):
@@ -48,6 +48,13 @@ def check(path: Path) -> bool:
         return report(path, [f"columns are {list(df.columns)}, expected {expected}"], warnings)
     if df.empty:
         return report(path, ["file has no rows"], warnings)
+
+    if not bench:
+        from twin.data import DataError, validate_run
+        try:
+            validate_run(df)
+        except DataError as exc:
+            problems.append(str(exc))
 
     if not bench:
         bad = set(df["phase"].dropna().unique()) - set(config.PHASES)
