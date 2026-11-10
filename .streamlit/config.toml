@@ -1,12 +1,54 @@
 [theme]
-primaryColor = "#00868a"
-backgroundColor = "#fbfcfd"
-secondaryBackgroundColor = "#edf3f5"
-textColor = "#142d40"
-font = "sans serif"
+base = "light"
+primaryColor = "#EA580C"
+backgroundColor = "#F4F3EF"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#141413"
+borderColor = "#E2DFD7"
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "10px"
+buttonRadius = "8px"
+redColor = "#DC2626"
+orangeColor = "#EA580C"
+blueColor = "#0284C7"
+greenColor = "#15803D"
+font = "Inter"
+headingFont = "Space Grotesk"
+codeFont = "JetBrains Mono"
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter.woff2"
+weight = "400 700"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Space Grotesk"
+url = "app/static/fonts/space-grotesk.woff2"
+weight = "600 700"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono.woff2"
+weight = "500 700"
+style = "normal"
+
+[theme.sidebar]
+backgroundColor = "#ECEAE3"
+secondaryBackgroundColor = "#FFFFFF"
+borderColor = "#DCD9CF"
+
+[ui]
+hideTopBar = true
+
+[client]
+toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false
 
 [server]
 headless = true
+enableStaticServing = true
